@@ -1,0 +1,25 @@
+{
+  "name": "jagx-session",
+  "version": "1.0.0",
+  "private": true,
+  "description": "JagX session ID generator - pairs your WhatsApp and hands you a portable session string",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "@hapi/boom": "^10.0.1",
+    "@whiskeysockets/baileys": "^6.7.9",
+    "axios": "^1.7.2",
+    "express": "^4.19.2",
+    "moment-timezone": "^0.5.45",
+    "pino": "^9.3.2",
+    "qrcode": "^1.5.3"
+  },
+  "optionalDependencies": {
+    "sharp": "^0.33.4"
+  }
+}

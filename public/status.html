@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>JagX — Status Panel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0d0e; --panel: #14171a; --panel-2: #1a1e21; --border: rgba(255,255,255,0.08);
+    --text: #e9e4d8; --text-dim: #8a8f8c; --amber: #ffb020; --amber-dim: #c98a1b; --teal: #3ecf8e; --red: #e5484d;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; min-height: 100vh; padding: 24px; }
+  .wrap { max-width: 560px; margin: 0 auto; }
+  .eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.14em; color: var(--amber-dim); text-transform: uppercase; margin: 0 0 8px 2px; }
+  h1 { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 26px; margin: 0 0 20px 2px; }
+  a.back { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--amber-dim); text-decoration: none; }
+  .terminal { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-top: 16px; }
+  .titlebar { display: flex; align-items: center; gap: 7px; padding: 12px 14px; background: var(--panel-2); border-bottom: 1px solid var(--border); font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-dim); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot.r { background: #e5484d55; border: 1px solid #e5484d99; }
+  .dot.y { background: #ffb02055; border: 1px solid #ffb02099; }
+  .dot.g { background: #3ecf8e55; border: 1px solid #3ecf8e99; }
+  .body { padding: 18px; }
+  .empty { font-family: 'IBM Plex Mono', monospace; color: var(--text-dim); font-size: 13px; text-align: center; padding: 20px 0; }
+  .bot-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .bot-row:last-child { border-bottom: none; }
+  .bot-info { font-family: 'IBM Plex Mono', monospace; }
+  .bot-number { font-size: 15px; color: var(--teal); }
+  .bot-since { font-size: 12px; color: var(--text-dim); margin-top: 3px; }
+  button.logout { background: transparent; border: 1px solid var(--red); color: #ff9a9d; border-radius: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 8px 14px; cursor: pointer; }
+  button.logout:hover { background: rgba(229,72,77,0.1); }
+  .refresh-note { text-align: center; font-size: 12px; color: var(--text-dim); margin-top: 16px; font-family: 'IBM Plex Mono', monospace; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="eyebrow">jagx // status panel</p>
+    <h1>Connected bots</h1>
+    <a class="back" href="/">← back to pairing</a>
+
+    <div class="terminal">
+      <div class="titlebar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        status.jagx
+      </div>
+      <div class="body" id="list">
+        <div class="empty">Loading…</div>
+      </div>
+    </div>
+    <p class="refresh-note">Refreshes automatically every 10 seconds</p>
+  </div>
+
+<script>
+function timeAgo(ts) {
+  const s = Math.floor((Date.now() - ts) / 1000);
+  if (s < 60) return s + 's ago';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+}
+
+async function load() {
+  const list = document.getElementById('list');
+  try {
+    const res = await fetch('/api/status');
+    const data = await res.json();
+    if (!data.bots.length) {
+      list.innerHTML = '<div class="empty">No bots connected yet. <a class="back" href="/">Connect one →</a></div>';
+      return;
+    }
+    list.innerHTML = '';
+    for (const bot of data.bots) {
+      const row = document.createElement('div');
+      row.className = 'bot-row';
+      row.innerHTML =
+        '<div class="bot-info">' +
+        '<div class="bot-number">' + bot.ownerNumber + '</div>' +
+        '<div class="bot-since">connected ' + timeAgo(bot.connectedAt) + '</div>' +
+        '</div>' +
+        '<button class="logout" data-number="' + bot.ownerNumber + '">Log out</button>';
+      list.appendChild(row);
+    }
+    document.querySelectorAll('.logout').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        if (!confirm('Log out ' + btn.dataset.number + '? This disconnects the bot from WhatsApp entirely — you\'ll need to scan/pair again to reconnect it.')) return;
+        btn.disabled = true;
+        btn.textContent = 'Logging out…';
+        await fetch('/api/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ownerNumber: btn.dataset.number }),
+        });
+        load();
+      });
+    });
+  } catch (e) {
+    list.innerHTML = '<div class="empty">Could not load status.</div>';
+  }
+}
+
+load();
+setInterval(load, 10000);
+</script>
+</body>
+</html>

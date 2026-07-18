@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>JagX — Session Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0d0e;
+    --panel: #14171a;
+    --panel-2: #1a1e21;
+    --border: rgba(255,255,255,0.08);
+    --text: #e9e4d8;
+    --text-dim: #8a8f8c;
+    --amber: #ffb020;
+    --amber-dim: #c98a1b;
+    --teal: #3ecf8e;
+    --red: #e5484d;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    position: relative;
+    overflow-x: hidden;
+  }
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
+    z-index: 0;
+  }
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    background: radial-gradient(ellipse at 50% 20%, rgba(255,176,32,0.06), transparent 60%);
+    z-index: 0;
+  }
+  .wrap { max-width: 460px; width: 100%; position: relative; z-index: 1; }
+  .eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.14em; color: var(--amber-dim); text-transform: uppercase; margin: 0 0 8px 2px; }
+  h1 { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 28px; letter-spacing: -0.01em; margin: 0 0 6px 2px; }
+  .sub { color: var(--text-dim); font-size: 14px; margin: 0 0 24px 2px; line-height: 1.5; }
+  .terminal { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: 0 40px 80px -30px rgba(0,0,0,0.6); }
+  .titlebar { display: flex; align-items: center; gap: 7px; padding: 12px 14px; background: var(--panel-2); border-bottom: 1px solid var(--border); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot.r { background: #e5484d55; border: 1px solid #e5484d99; }
+  .dot.y { background: #ffb02055; border: 1px solid #ffb02099; }
+  .dot.g { background: #3ecf8e55; border: 1px solid #3ecf8e99; }
+  .titlebar span { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-dim); margin-left: 6px; }
+  .body { padding: 22px; }
+
+  .tabs { display: flex; gap: 6px; margin-bottom: 18px; background: #0e1012; border: 1px solid var(--border); border-radius: 8px; padding: 4px; }
+  .tab { flex: 1; text-align: center; padding: 9px 10px; border-radius: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.04em; color: var(--text-dim); cursor: pointer; transition: background 0.15s ease, color 0.15s ease; }
+  .tab.active { background: var(--amber); color: #1a1102; font-weight: 600; }
+
+  label { display: block; font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--amber-dim); letter-spacing: 0.06em; margin-bottom: 8px; }
+  .input-row { display: flex; gap: 10px; }
+  input[type="text"] { flex: 1; background: #0e1012; border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 15px; padding: 12px 14px; outline: none; transition: border-color 0.15s ease; }
+  input[type="text"]:focus { border-color: var(--amber-dim); }
+  input[type="text"]::placeholder { color: #4a4f4c; }
+  button { background: var(--amber); color: #1a1102; border: none; border-radius: 6px; font-family: 'IBM Plex Mono', monospace; font-weight: 600; font-size: 14px; padding: 12px 18px; cursor: pointer; transition: filter 0.15s ease, transform 0.05s ease; white-space: nowrap; }
+  button.full { width: 100%; }
+  button:hover:not(:disabled) { filter: brightness(1.1); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  .hint { font-size: 12px; color: var(--text-dim); margin-top: 10px; line-height: 1.5; }
+
+  .log { margin-top: 18px; border-top: 1px solid var(--border); padding-top: 16px; display: none; }
+  .log.show { display: block; }
+  .line { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--text-dim); margin-bottom: 8px; display: flex; gap: 8px; align-items: baseline; }
+  .line .tag { color: var(--amber-dim); flex-shrink: 0; }
+  .line.active .cursor { display: inline-block; width: 7px; height: 14px; background: var(--amber); animation: blink 1s step-end infinite; margin-left: 2px; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .qr-display { margin-top: 16px; background: #0e1012; border: 1px solid var(--amber-dim); border-radius: 8px; padding: 20px; text-align: center; }
+  .qr-display img { width: 220px; height: 220px; border-radius: 6px; background: #fff; padding: 10px; }
+  .qr-display .caption { font-size: 12px; color: var(--text-dim); margin-top: 12px; line-height: 1.5; }
+
+  .code-display { margin-top: 16px; background: #0e1012; border: 1px solid var(--amber-dim); border-radius: 8px; padding: 20px; text-align: center; }
+  .code-display .code { font-family: 'IBM Plex Mono', monospace; font-size: 32px; font-weight: 700; letter-spacing: 0.12em; color: var(--amber); text-shadow: 0 0 18px rgba(255,176,32,0.35); }
+  .code-display .caption { font-size: 12px; color: var(--text-dim); margin-top: 10px; }
+
+  .session-box { margin-top: 16px; }
+  .session-box textarea { width: 100%; background: #0e1012; border: 1px solid var(--teal); border-radius: 8px; color: var(--teal); font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 14px; resize: none; height: 110px; outline: none; }
+  .session-actions { display: flex; gap: 10px; margin-top: 10px; }
+  .session-actions button { flex: 1; }
+  .copy-btn { background: var(--teal); color: #04231a; }
+
+  .connected-panel { background: rgba(62,207,142,0.08); border: 1px solid var(--teal); border-radius: 8px; padding: 18px; text-align: center; }
+  .connected-title { font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 700; color: var(--teal); margin-bottom: 8px; }
+  .connected-sub { font-size: 13px; color: var(--text-dim); line-height: 1.6; }
+  .connected-sub code { color: var(--teal); }
+
+  .error-box { margin-top: 16px; border: 1px solid var(--red); background: rgba(229,72,77,0.08); border-radius: 8px; padding: 14px 16px; color: #ff9a9d; font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.5; }
+
+  footer { text-align: center; font-size: 12px; color: var(--text-dim); margin-top: 20px; line-height: 1.6; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="eyebrow">jagx // session generator</p>
+    <h1>Link your number</h1>
+    <p class="sub">Scan a QR code (recommended — more reliable) or use a pairing code. The moment it connects, your JagX bot starts running right here on this server — no app to keep open, ever.</p>
+
+    <div class="terminal">
+      <div class="titlebar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span>pair.jagx</span>
+      </div>
+      <div class="body">
+        <div class="tabs">
+          <div class="tab active" id="tab-qr" data-mode="qr">QR CODE</div>
+          <div class="tab" id="tab-pairing" data-mode="pairing">PAIRING CODE</div>
+        </div>
+
+        <div id="qr-panel">
+          <button class="full" id="qrBtn">Generate QR code</button>
+          <p class="hint">Open WhatsApp → Settings → Linked Devices → Link a Device, then scan the QR code that appears below.</p>
+        </div>
+
+        <div id="pairing-panel" style="display:none;">
+          <label for="phone">Phone number (country code, digits only)</label>
+          <div class="input-row">
+            <input type="text" id="phone" placeholder="234xxxxxxxxxx" inputmode="numeric" autocomplete="off" />
+            <button id="pairingBtn">Connect</button>
+          </div>
+          <p class="hint">No + sign, no spaces, no leading 0 after the country code. WhatsApp's pairing codes expire quickly — have WhatsApp already open to the "Link with phone number" screen before you click Connect, so you can enter it the instant it appears.</p>
+        </div>
+
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+
+    <footer>
+      Once connected, your bot runs continuously on this server.<br/>
+      That means this server holds live access to your WhatsApp account — only use a deployment you control.<br/>
+      <a href="/status.html" style="color: var(--amber-dim);">View connected bots →</a>
+    </footer>
+  </div>
+
+<script>
+const tabs = document.querySelectorAll('.tab');
+const qrPanel = document.getElementById('qr-panel');
+const pairingPanel = document.getElementById('pairing-panel');
+const log = document.getElementById('log');
+const qrBtn = document.getElementById('qrBtn');
+const pairingBtn = document.getElementById('pairingBtn');
+const phoneInput = document.getElementById('phone');
+
+tabs.forEach((tab) => {
+  tab.addEventListener('click', () => {
+    tabs.forEach((t) => t.classList.remove('active'));
+    tab.classList.add('active');
+    const mode = tab.dataset.mode;
+    qrPanel.style.display = mode === 'qr' ? 'block' : 'none';
+    pairingPanel.style.display = mode === 'pairing' ? 'block' : 'none';
+    log.classList.remove('show');
+    log.innerHTML = '';
+  });
+});
+
+function addLine(id, tag, text, active) {
+  let el = document.getElementById(id);
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'line';
+    el.id = id;
+    el.innerHTML = `<span class="tag">${tag}</span><span class="txt"></span>`;
+    log.appendChild(el);
+  }
+  el.querySelector('.txt').textContent = text;
+  document.querySelectorAll('.line').forEach((l) => l.classList.remove('active'));
+  if (active) {
+    el.classList.add('active');
+    if (!el.querySelector('.cursor')) {
+      const c = document.createElement('span');
+      c.className = 'cursor';
+      el.querySelector('.txt').after(c);
+    }
+  }
+}
+
+function showQr(dataUrl) {
+  let box = document.getElementById('qr-box');
+  if (!box) {
+    box = document.createElement('div');
+    box.className = 'qr-display';
+    box.id = 'qr-box';
+    box.innerHTML = '<img id="qr-img" src="" alt="QR code" /><div class="caption">Scan with WhatsApp → Linked Devices → Link a Device</div>';
+    log.appendChild(box);
+  }
+  document.getElementById('qr-img').src = dataUrl;
+}
+
+let codeCountdownInterval = null;
+
+function showCode(code, validForSeconds) {
+  let box = document.getElementById('code-box');
+  if (!box) {
+    box = document.createElement('div');
+    box.className = 'code-display';
+    box.id = 'code-box';
+    box.innerHTML = '<div class="code" id="code-text"></div><div class="caption">Enter this in WhatsApp → Linked Devices → Link with phone number</div><div class="caption" id="code-countdown"></div>';
+    log.appendChild(box);
+  }
+  document.getElementById('code-text').textContent = code;
+
+  if (codeCountdownInterval) clearInterval(codeCountdownInterval);
+  if (validForSeconds) {
+    let remaining = validForSeconds;
+    const countdownEl = document.getElementById('code-countdown');
+    const update = () => {
+      countdownEl.textContent = remaining > 0 ? `Refreshes in ${remaining}s if not used` : 'Refreshing…';
+      remaining--;
+    };
+    update();
+    codeCountdownInterval = setInterval(update, 1000);
+  }
+}
+
+function showConnected(ownerNumber) {
+  const box = document.createElement('div');
+  box.className = 'session-box';
+  box.innerHTML =
+    '<div class="connected-panel">' +
+    '<div class="connected-title">✅ Bot is live</div>' +
+    '<div class="connected-sub">Connected as ' + ownerNumber + '. Go to WhatsApp and send <code>.menu</code> to yourself — JagX is already running.</div>' +
+    '</div>';
+  log.appendChild(box);
+}
+
+function showError(message) {
+  const box = document.createElement('div');
+  box.className = 'error-box';
+  box.textContent = message;
+  log.appendChild(box);
+}
+
+async function connect(mode) {
+  const phone = phoneInput.value.replace(/[^0-9]/g, '');
+  if (mode === 'pairing' && (!phone || phone.length < 8)) {
+    alert('Enter a valid phone number with country code, digits only.');
+    return;
+  }
+
+  const btn = mode === 'qr' ? qrBtn : pairingBtn;
+  btn.disabled = true;
+  btn.textContent = mode === 'qr' ? 'Generating…' : 'Connecting…';
+  log.classList.add('show');
+  log.innerHTML = '';
+  addLine('line-request', '$', mode === 'qr' ? 'requesting QR code' : 'requesting pairing code', true);
+
+  try {
+    const res = await fetch('/api/pair', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, mode }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      showError(err.error || 'Request failed. Please try again.');
+      btn.disabled = false;
+      btn.textContent = mode === 'qr' ? 'Generate QR code' : 'Connect';
+      return;
+    }
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const msg = JSON.parse(line);
+        if (msg.type === 'qr') {
+          addLine('line-request', '$', 'QR code ready — scan it below', false);
+          showQr(msg.dataUrl);
+          addLine('line-wait', '$', 'waiting for scan', true);
+        } else if (msg.type === 'code') {
+          addLine('line-request', '$', 'pairing code ready', false);
+          showCode(msg.code, msg.validForSeconds);
+          addLine('line-wait', '$', 'waiting for you to enter it on your phone', true);
+        } else if (msg.type === 'connected') {
+          addLine('line-wait', '$', 'connected', false);
+          addLine('line-done', '✓', 'bot is now running', false);
+          showConnected(msg.ownerNumber);
+          btn.textContent = 'Connected';
+        } else if (msg.type === 'error') {
+          showError(msg.message);
+          btn.disabled = false;
+          btn.textContent = mode === 'qr' ? 'Generate QR code' : 'Connect';
+        }
+      }
+    }
+  } catch (e) {
+    showError('Connection lost: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = mode === 'qr' ? 'Generate QR code' : 'Connect';
+  }
+}
+
+qrBtn.addEventListener('click', () => connect('qr'));
+pairingBtn.addEventListener('click', () => connect('pairing'));
+phoneInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect('pairing'); });
+</script>
+</body>
+</html>
